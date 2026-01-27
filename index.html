@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- saved from url=(0168)file:///C:/Users/User/Desktop/Km-lite%20v2.6%20%E2%80%94%20ReliefWeb%20+%20Acled%20+%20Composite%20conflict%20risk%20+%20Partner%20filter%20(country%20canon%20fix).html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1769,41 +1768,116 @@ loadMostReadUkraine();
 
 async function loadMostReadUkraine() {
   try {
-    const url = "https://reliefweb.int/country/ukr";
+    const url = "https://reliefweb.int/country/ukr#key-content";
     const res = await fetch(proxify(url));
     const html = await res.text();
 
     const doc = new DOMParser().parseFromString(html, "text/html");
 
-    const items = [...doc.querySelectorAll("a")]
-      .filter(a => a.href.includes("/report/"))
-      .slice(0, 5);
+    // --- helper: 섹션 제목(h2/h3 등) 텍스트로 "해당 섹션 컨테이너"를 찾기 ---
+    function findSectionRootByHeadingText(text){
+      const headings = [...doc.querySelectorAll("h1,h2,h3,h4")];
+      const h = headings.find(x => (x.textContent || "").trim().toLowerCase() === text.toLowerCase());
+      if(!h) return null;
+
+      // ReliefWeb은 보통 heading을 감싸는 section/article/div가 있음.
+      // 가장 가까운 의미 있는 컨테이너를 잡아봄.
+      return h.closest("section, article, div") || h.parentElement;
+    }
+
+    // --- helper: 특정 root 안에서 report 링크만 뽑기(중복 제거) ---
+    function extractReportLinks(root, limit){
+      if(!root) return [];
+      const links = [...root.querySelectorAll('a[href*="/report/"]')];
+
+      const seen = new Set();
+      const out = [];
+      for(const a of links){
+        const href = a.href;
+        const title = (a.textContent || "").trim();
+        if(!href || !title) continue;
+        if(seen.has(href)) continue;
+        seen.add(href);
+        out.push({ href, title });
+        if(out.length >= limit) break;
+      }
+      return out;
+    }
+
+    // 1) Most Read 섹션만
+    const mostReadRoot = findSectionRootByHeadingText("Most Read");
+    const mostRead = extractReportLinks(mostReadRoot, 5);
+
+    // 2) Key Content 섹션만 (없을 수도 있어서 안전하게)
+    const keyContentRoot = findSectionRootByHeadingText("Key Content");
+    const keyContent = extractReportLinks(keyContentRoot, 5);
+
+    // --- UI 박스 만들기 ---
+    const boxId = "rw-spotlight-ukr";
+    const old = document.getElementById(boxId);
+    if(old) old.remove(); // Fetch 여러 번 눌러도 중복 박스 안 쌓이게
 
     const box = document.createElement("div");
+    box.id = boxId;
     box.style.margin = "20px";
     box.style.padding = "12px";
     box.style.background = "#111";
     box.style.border = "1px solid #333";
-    box.innerHTML = "<h3>Most Read – Ukraine</h3>";
 
-    items.forEach(a => {
-      const link = document.createElement("a");
-      link.href = a.href;
-      link.textContent = a.textContent.trim();
-      link.target = "_blank";
-      link.style.display = "block";
-      link.style.marginBottom = "6px";
-      box.appendChild(link);
-    });
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+        <h3 style="margin:0;">Key Content + Most Read — Ukraine</h3>
+        <a href="https://reliefweb.int/country/ukr#key-content" target="_blank" style="font-size:12px;opacity:.8;">Open on ReliefWeb</a>
+      </div>
+      <div id="rw-ukr-sections" style="margin-top:10px;"></div>
+    `;
+
+    const sections = box.querySelector("#rw-ukr-sections");
+
+    function renderSection(title, items){
+      const wrap = document.createElement("div");
+      wrap.style.marginTop = "10px";
+
+      const h = document.createElement("div");
+      h.textContent = title;
+      h.style.fontWeight = "700";
+      h.style.marginBottom = "6px";
+      wrap.appendChild(h);
+
+      if(!items.length){
+        const empty = document.createElement("div");
+        empty.textContent = "(No items found — ReliefWeb page structure may have changed)";
+        empty.style.opacity = "0.7";
+        empty.style.fontSize = "12px";
+        wrap.appendChild(empty);
+      } else {
+        items.forEach(it=>{
+          const a = document.createElement("a");
+          a.href = it.href;
+          a.textContent = it.title;
+          a.target = "_blank";
+          a.style.display = "block";
+          a.style.marginBottom = "6px";
+          wrap.appendChild(a);
+        });
+      }
+      return wrap;
+    }
+
+    sections.appendChild(renderSection("Most Read", mostRead));
+    sections.appendChild(renderSection("Key Content", keyContent));
 
     document.body.prepend(box);
   } catch(e) {
-    console.error("Most Read load error:", e);
+    console.error("Key Content + Most Read load error:", e);
   }
 }
+
+  
 </script>
 
 
 
 </body></html>
+
 
