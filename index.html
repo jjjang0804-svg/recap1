@@ -1765,8 +1765,45 @@ renderNotes('');
 renderDashboardTiles();
 renderReportTable();
 renderMap();
+loadMostReadUkraine();
+
+async function loadMostReadUkraine() {
+  try {
+    const url = "https://reliefweb.int/country/ukr";
+    const res = await fetch(proxify(url));
+    const html = await res.text();
+
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    const items = [...doc.querySelectorAll("a")]
+      .filter(a => a.href.includes("/report/"))
+      .slice(0, 5);
+
+    const box = document.createElement("div");
+    box.style.margin = "20px";
+    box.style.padding = "12px";
+    box.style.background = "#111";
+    box.style.border = "1px solid #333";
+    box.innerHTML = "<h3>Most Read – Ukraine</h3>";
+
+    items.forEach(a => {
+      const link = document.createElement("a");
+      link.href = a.href;
+      link.textContent = a.textContent.trim();
+      link.target = "_blank";
+      link.style.display = "block";
+      link.style.marginBottom = "6px";
+      box.appendChild(link);
+    });
+
+    document.body.prepend(box);
+  } catch(e) {
+    console.error("Most Read load error:", e);
+  }
+}
 </script>
 
 
 
 </body></html>
+
