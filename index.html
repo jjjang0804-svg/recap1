@@ -215,6 +215,17 @@ th{position:sticky;top:0;background:#0f1620;z-index:2}
       <span id="status" class="small"></span>
     </div>
 
+<div class="flex" style="gap:10px;align-items:center;margin-top:6px">
+  <label class="small">ReliefWeb Spotlight</label>
+  <select id="rw-spotlight-country">
+    <option value="ukr">Ukraine</option>
+    <option value="pse">Gaza / OPT</option>
+    <option value="yem">Yemen</option>
+    <option value="moz">Mozambique</option>
+    <option value="usa">United States</option>
+  </select>
+</div>
+    
     <div class="flex" style="gap:10px;align-items:center">
       <label class="small" style="margin-right:4px">Sources</label>
       <label class="small"><input type="checkbox" id="src-rw" checked=""> ReliefWeb</label>
@@ -1764,32 +1775,37 @@ renderNotes('');
 renderDashboardTiles();
 renderReportTable();
 renderMap();
-loadMostReadUkraine();
+// 처음 1회 로드
+refreshSpotlightNow();
 
-async function loadMostReadUkraine() {
+// 이후 자동 갱신
+clearInterval(rwRefreshTimer);
+rwRefreshTimer = setInterval(refreshSpotlightNow, 10 * 60 * 1000);
+
+
+// =============================
+// ReliefWeb: Most Read + Key Content (generic)
+// =============================
+let rwSelectedIso3 = "ukr";   // 기본값: Ukraine
+let rwRefreshTimer = null;
+
+async function loadRWKeyMost(iso3, label){
   try {
-    const url = "https://reliefweb.int/country/ukr#key-content";
+    const url = `https://reliefweb.int/country/${encodeURIComponent(iso3)}#key-content`;
     const res = await fetch(proxify(url));
     const html = await res.text();
-
     const doc = new DOMParser().parseFromString(html, "text/html");
 
-    // --- helper: 섹션 제목(h2/h3 등) 텍스트로 "해당 섹션 컨테이너"를 찾기 ---
     function findSectionRootByHeadingText(text){
       const headings = [...doc.querySelectorAll("h1,h2,h3,h4")];
       const h = headings.find(x => (x.textContent || "").trim().toLowerCase() === text.toLowerCase());
       if(!h) return null;
-
-      // ReliefWeb은 보통 heading을 감싸는 section/article/div가 있음.
-      // 가장 가까운 의미 있는 컨테이너를 잡아봄.
       return h.closest("section, article, div") || h.parentElement;
     }
 
-    // --- helper: 특정 root 안에서 report 링크만 뽑기(중복 제거) ---
     function extractReportLinks(root, limit){
       if(!root) return [];
       const links = [...root.querySelectorAll('a[href*="/report/"]')];
-
       const seen = new Set();
       const out = [];
       for(const a of links){
@@ -1804,18 +1820,16 @@ async function loadMostReadUkraine() {
       return out;
     }
 
-    // 1) Most Read 섹션만
     const mostReadRoot = findSectionRootByHeadingText("Most Read");
-    const mostRead = extractReportLinks(mostReadRoot, 5);
-
-    // 2) Key Content 섹션만 (없을 수도 있어서 안전하게)
     const keyContentRoot = findSectionRootByHeadingText("Key Content");
-    const keyContent = extractReportLinks(keyContentRoot, 5);
 
-    // --- UI 박스 만들기 ---
-    const boxId = "rw-spotlight-ukr";
+    const mostRead = extractReportLinks(mostReadRoot, 6);
+    const keyContent = extractReportLinks(keyContentRoot, 6);
+
+    // ---- UI 박스 렌더 ----
+    const boxId = "rw-spotlight";
     const old = document.getElementById(boxId);
-    if(old) old.remove(); // Fetch 여러 번 눌러도 중복 박스 안 쌓이게
+    if(old) old.remove();
 
     const box = document.createElement("div");
     box.id = boxId;
@@ -1826,18 +1840,17 @@ async function loadMostReadUkraine() {
 
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
-        <h3 style="margin:0;">Most Read + Key Content — Ukraine</h3>
-        <a href="https://reliefweb.int/country/ukr#key-content" target="_blank" style="font-size:12px;opacity:.8;">Open on ReliefWeb</a>
+        <h3 style="margin:0;">Most Read + Key Content — ${escapeHTML(label)}</h3>
+        <a href="${escapeAttr(url)}" target="_blank" style="font-size:12px;opacity:.9">Open on ReliefWeb</a>
       </div>
-      <div id="rw-ukr-sections" style="margin-top:10px;"></div>
+      <div id="rw-sections" style="margin-top:10px;"></div>
     `;
 
-    const sections = box.querySelector("#rw-ukr-sections");
+    const sections = box.querySelector("#rw-sections");
 
     function renderSection(title, items){
       const wrap = document.createElement("div");
       wrap.style.marginTop = "10px";
-
       const h = document.createElement("div");
       h.textContent = title;
       h.style.fontWeight = "700";
@@ -1846,7 +1859,7 @@ async function loadMostReadUkraine() {
 
       if(!items.length){
         const empty = document.createElement("div");
-        empty.textContent = "(No items found — ReliefWeb page structure may have changed)";
+        empty.textContent = "(No items found)";
         empty.style.opacity = "0.7";
         empty.style.fontSize = "12px";
         wrap.appendChild(empty);
@@ -1868,17 +1881,43 @@ async function loadMostReadUkraine() {
     sections.appendChild(renderSection("Key Content", keyContent));
 
     document.body.prepend(box);
+
   } catch(e) {
-    console.error("Most Read + Key Content load error:", e);
+    console.error("RW load error:", e);
   }
 }
 
+const RW_LABEL = {
+  ukr: "Ukraine Conflict",
+  pse: "Gaza Conflict",
+  moz: "Mozambique Conflict",
+  yem: "Yemen Conflict",
+  usa: "US (optional)"
+};
+
+function refreshSpotlightNow(){
+  const iso3 = rwSelectedIso3 || "ukr";
+  loadRWKeyMost(iso3, RW_LABEL[iso3] || iso3.toUpperCase());
+}
+
+// UI 이벤트 연결
+const rwSel = document.getElementById("rw-spotlight-select");
+if (rwSel) {
+  rwSel.value = rwSelectedIso3;
+  rwSel.onchange = () => {
+    rwSelectedIso3 = rwSel.value;
+    refreshSpotlightNow();
+  };
+}
+
+  
   
 </script>
 
 
 
 </body></html>
+
 
 
 
