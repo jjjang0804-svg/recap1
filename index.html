@@ -215,6 +215,8 @@ th{position:sticky;top:0;background:#0f1620;z-index:2}
       <span id="status" class="small"></span>
     </div>
 
+    <div id="rw-spotlight-host"></div>
+
 <div class="flex" style="gap:10px;align-items:center;margin-top:6px">
   <label class="small">ReliefWeb Spotlight</label>
   <select id="rw-spotlight-country">
@@ -1775,6 +1777,7 @@ renderNotes('');
 renderDashboardTiles();
 renderReportTable();
 renderMap();
+loadRWSpotlight('ukr');
 // 처음 1회 로드
 refreshSpotlightNow();
 
@@ -1894,7 +1897,7 @@ async function loadRWKeyMost(iso3, label){
     sections.appendChild(renderSection("Most Read", mostRead));
     sections.appendChild(renderSection("Key Content", keyContent));
 
-    document.body.prepend(box);
+    document.getElementById('rw-spotlight-host').replaceChildren(box);
 
   } catch(e) {
     console.error("RW load error:", e);
@@ -1931,6 +1934,7 @@ if (rwSel) {
 
 
 </body></html>
+
 
 
 
