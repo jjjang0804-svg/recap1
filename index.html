@@ -1777,10 +1777,9 @@ renderNotes('');
 renderDashboardTiles();
 renderReportTable();
 renderMap();
-loadRWSpotlight('ukr');
 // 처음 1회 로드
 refreshSpotlightNow();
-
+setTimeout(refreshSpotlightNow, 0);
 // 이후 자동 갱신
 clearInterval(rwRefreshTimer);
 rwRefreshTimer = setInterval(refreshSpotlightNow, 10 * 60 * 1000);
@@ -1934,6 +1933,7 @@ if (rwSel) {
 
 
 </body></html>
+
 
 
 
