@@ -1230,9 +1230,7 @@ function renderDashboardTiles(){
 
 /* =============================
   ReliefWeb fetch (country canon fix)
-============================= */
-let rwSelectedIso3 = 'ukr';
-  
+============================= */  
 async function fetchReliefWeb(){
   const years = Number(document.getElementById('years').value || 10);
   const limit = Math.min(Number(document.getElementById('max-items').value || 1000), 5000);
@@ -1935,6 +1933,7 @@ if (rwSel) {
 
 
 </body></html>
+
 
 
 
