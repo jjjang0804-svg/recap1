@@ -1805,20 +1805,34 @@ async function loadRWKeyMost(iso3, label){
 
     function extractReportLinks(root, limit){
       if(!root) return [];
-      const links = [...root.querySelectorAll('a[href*="/report/"]')];
+      const links = [...root.querySelectorAll('a[href]')];
       const seen = new Set();
       const out = [];
-      for(const a of links){
-        const href = a.href;
-        const title = (a.textContent || "").trim();
-        if(!href || !title) continue;
-        if(seen.has(href)) continue;
-        seen.add(href);
-        out.push({ href, title });
-        if(out.length >= limit) break;
-      }
-      return out;
+
+    for(const a of links){
+      let href = a.getAttribute('href') || '';
+      href = href.trim();
+      const title = (a.textContent || '').trim();
+  
+      if(!href || !title) continue;
+  
+      // report 링크만
+      if(!(href.includes('/report/') || href.startsWith('/report/'))) continue;
+  
+      // 절대 URL로 보정
+      if(href.startsWith('/')) href = 'https://reliefweb.int' + href;
+      if(href.startsWith('//')) href = 'https:' + href;
+  
+      if(seen.has(href)) continue;
+      seen.add(href);
+  
+      out.push({ href, title });
+      if(out.length >= limit) break;
     }
+
+  return out;
+}
+
 
     const mostReadRoot = findSectionRootByHeadingText("Most Read");
     const keyContentRoot = findSectionRootByHeadingText("Key Content");
@@ -1917,6 +1931,7 @@ if (rwSel) {
 
 
 </body></html>
+
 
 
 
